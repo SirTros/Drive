@@ -9,7 +9,7 @@
 body{
     margin:0;
     font-family:Arial;
-    background:linear-gradient(135deg,#0a0a0a,#1a1a1a);
+    background:#0b0b0b;
     color:white;
 }
 
@@ -17,9 +17,8 @@ header{
     background:#000;
     padding:16px;
     text-align:center;
-    font-size:18px;
     font-weight:bold;
-    border-bottom:2px solid #333;
+    border-bottom:1px solid #333;
 }
 
 .container{padding:12px;}
@@ -27,14 +26,15 @@ header{
 input{
     width:100%;
     padding:14px;
+    font-size:16px;
     border:none;
     border-radius:10px;
-    font-size:16px;
+    margin-top:6px;
     outline:none;
 }
 
 .suggestions{
-    background:#1e1e1e;
+    background:#1c1c1c;
     margin-top:6px;
     border-radius:10px;
     overflow:hidden;
@@ -53,23 +53,8 @@ input{
 .card{
     background:#161616;
     padding:10px;
-    border-radius:10px;
     margin-top:10px;
-}
-
-button{
-    width:100%;
-    padding:12px;
-    border:none;
     border-radius:10px;
-    margin-top:8px;
-    font-weight:bold;
-    background:#00e676;
-}
-
-.small{
-    font-size:12px;
-    opacity:0.6;
 }
 
 .item{
@@ -78,35 +63,52 @@ button{
     margin:5px 0;
     border-radius:8px;
 }
+
+button{
+    width:100%;
+    padding:12px;
+    margin-top:8px;
+    border:none;
+    border-radius:10px;
+    background:#00e676;
+    font-weight:bold;
+}
 </style>
 </head>
 
 <body>
 
-<header>🚗 SirTros Drive – REAL WORLD (OSM)</header>
+<header>🚗 SirTros Drive – FULL BOLT SYSTEM</header>
 
 <div class="container">
 
-<!-- ADRESA -->
-<h3>📍 Adresa</h3>
-<input id="search" oninput="searchPlaces()" placeholder="Napiš adresu (Praha, dům, obývák...)">
+<h3>📍 Adresa (real world search)</h3>
+<input id="search" oninput="search()" placeholder="např. Praha 5 Plzeňská 120">
 
 <div class="suggestions" id="list"></div>
 
 <div class="card">
-<div><b>Vybraná adresa:</b></div>
+<h3>🎯 Vybraná adresa</h3>
 <div id="selected">---</div>
 </div>
 
-<!-- KOŠÍK -->
 <div class="card">
-<h3>🛒 Košík jízd</h3>
-<div id="cart"></div>
+<h3>🚦 ODKUD</h3>
+<input id="from" placeholder="např. Obývák, Praha 5">
 </div>
 
-<button onclick="addToCart()">➕ Přidat jízdu</button>
+<div class="card">
+<h3>🏁 KAM</h3>
+<input id="to" placeholder="např. Televize, Karlovo náměstí">
+</div>
 
-<!-- USER DATA -->
+<div class="card">
+<h3>🛒 Košík jízd</h3>
+<div id="rides"></div>
+</div>
+
+<button onclick="addRide()">➕ Přidat jízdu</button>
+
 <div class="card">
 <h3>👤 Údaje</h3>
 <input id="name" placeholder="Jméno">
@@ -121,17 +123,17 @@ button{
 <script>
 
 let results = [];
-let selectedPlace = "";
+let selected = "";
 
-async function searchPlaces(){
+async function search(){
     let q = document.getElementById("search").value;
 
-    if(q.length < 2){
+    if(q.length < 3){
         document.getElementById("list").innerHTML = "";
         return;
     }
 
-    let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
+    let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(q)}`;
 
     let res = await fetch(url);
     let data = await res.json();
@@ -140,35 +142,38 @@ async function searchPlaces(){
 
     let html = "";
 
-    data.slice(0,6).forEach((p,i)=>{
-        html += `<div onclick="selectPlace(${i})">
-        📍 ${p.display_name}
+    data.forEach((p,i)=>{
+        html += `
+        <div onclick="select(${i})">
+            📍 ${p.display_name}
         </div>`;
     });
 
     document.getElementById("list").innerHTML = html;
 }
 
-function selectPlace(i){
-    selectedPlace = results[i].display_name;
-
-    document.getElementById("selected").innerText = selectedPlace;
-    document.getElementById("search").value = selectedPlace;
-
+function select(i){
+    selected = results[i].display_name;
+    document.getElementById("selected").innerText = selected;
+    document.getElementById("search").value = selected;
     document.getElementById("list").innerHTML = "";
 }
 
-function addToCart(){
-    if(!selectedPlace){
-        alert("❌ Nejprve vyber adresu!");
+function addRide(){
+
+    let from = document.getElementById("from").value;
+    let to = document.getElementById("to").value;
+
+    if(!from || !to){
+        alert("Vyplň ODKUD a KAM!");
         return;
     }
 
     let div = document.createElement("div");
     div.className = "item";
-    div.innerText = "🚗 " + selectedPlace;
+    div.innerText = "🚗 " + from + " ➜ " + to;
 
-    document.getElementById("cart").appendChild(div);
+    document.getElementById("rides").appendChild(div);
 }
 
 function send(){
@@ -178,6 +183,16 @@ function send(){
         items.push(i.innerText);
     });
 
+    let from = document.getElementById("from").value;
+    let to = document.getElementById("to").value;
+
+    // 🚗 TRASA LINK (klikací Google Maps)
+    let routeLink =
+        "https://www.google.com/maps/dir/?api=1&origin="
+        + encodeURIComponent(from)
+        + "&destination="
+        + encodeURIComponent(to);
+
     fetch("https://formspree.io/f/mdargvpd", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -185,7 +200,12 @@ function send(){
             name: document.getElementById("name").value,
             phone: document.getElementById("phone").value,
             email: document.getElementById("email").value,
-            orders: items.join(", ")
+
+            from: from,
+            to: to,
+
+            rides: items.join(", "),
+            route: routeLink
         })
     });
 
