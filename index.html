@@ -9,36 +9,52 @@
 body{
     margin:0;
     font-family:Arial;
-    background:linear-gradient(135deg,#0f0f0f,#1c1c1c);
+    background:linear-gradient(135deg,#0a0a0a,#1a1a1a);
     color:white;
 }
 
 header{
     background:#000;
-    padding:18px;
+    padding:16px;
     text-align:center;
-    font-size:20px;
+    font-size:18px;
     font-weight:bold;
     border-bottom:2px solid #333;
 }
 
 .container{padding:12px;}
 
-.card{
-    background:#1f1f1f;
-    padding:12px;
-    border-radius:12px;
-    margin-bottom:10px;
-    box-shadow:0 0 10px rgba(0,0,0,0.4);
+input{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    outline:none;
 }
 
-select,input{
-    width:100%;
-    padding:10px;
+.suggestions{
+    background:#1e1e1e;
     margin-top:6px;
-    margin-bottom:8px;
-    border-radius:8px;
-    border:none;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.suggestions div{
+    padding:10px;
+    border-bottom:1px solid #333;
+    cursor:pointer;
+}
+
+.suggestions div:hover{
+    background:#333;
+}
+
+.card{
+    background:#161616;
+    padding:10px;
+    border-radius:10px;
+    margin-top:10px;
 }
 
 button{
@@ -46,97 +62,51 @@ button{
     padding:12px;
     border:none;
     border-radius:10px;
-    background:#00c853;
-    color:black;
+    margin-top:8px;
     font-weight:bold;
-    margin-top:6px;
+    background:#00e676;
 }
 
-button:active{transform:scale(0.98);}
+.small{
+    font-size:12px;
+    opacity:0.6;
+}
 
-.cartItem{
-    background:#2a2a2a;
+.item{
+    background:#222;
     padding:8px;
     margin:5px 0;
     border-radius:8px;
-}
-
-iframe{
-    width:100%;
-    height:200px;
-    border-radius:10px;
-    border:none;
-}
-.small{
-    font-size:12px;
-    opacity:0.7;
 }
 </style>
 </head>
 
 <body>
 
-<header>🚗 SirTros Drive Indoor</header>
+<header>🚗 SirTros Drive – REAL WORLD (OSM)</header>
 
 <div class="container">
 
+<!-- ADRESA -->
+<h3>📍 Adresa</h3>
+<input id="search" oninput="searchPlaces()" placeholder="Napiš adresu (Praha, dům, obývák...)">
+
+<div class="suggestions" id="list"></div>
+
 <div class="card">
-<h3>🏠 Adresa domu</h3>
-<input id="house" placeholder="např. Praha, byt 12">
+<div><b>Vybraná adresa:</b></div>
+<div id="selected">---</div>
 </div>
 
+<!-- KOŠÍK -->
 <div class="card">
-<h3>📍 Google mapa (volitelné)</h3>
-<input id="mapQuery" placeholder="např. Praha, Václavák nebo obývák">
-<button onclick="updateMap()">📌 Načíst mapu</button>
-
-<iframe id="map"
-src="https://www.google.com/maps?q=Praha&output=embed"></iframe>
-
-<p class="small">Můžeš psát i „televize“, „skříň“, „kuchyň“…</p>
-</div>
-
-<div class="card">
-<h3>🚪 ODKUD</h3>
-<select id="from">
-<option>Obývák u stolu</option>
-<option>Kuchyň</option>
-<option>Ložnice</option>
-<option>Koupelna</option>
-<option>Televize</option>
-<option>Skříň</option>
-<option>Garáž</option>
-<option>Balkon</option>
-<option>Schody</option>
-<option value="custom">➕ Jiná (napsat)</option>
-</select>
-<input id="fromCustom" placeholder="Napiš vlastní místo" style="display:none;">
-</div>
-
-<div class="card">
-<h3>🎯 KAM</h3>
-<select id="to">
-<option>Obývák u stolu</option>
-<option>Kuchyň</option>
-<option>Ložnice</option>
-<option>Koupelna</option>
-<option>Televize</option>
-<option>Skříň</option>
-<option>Garáž</option>
-<option>Balkon</option>
-<option>Schody</option>
-<option value="custom">➕ Jiná (napsat)</option>
-</select>
-<input id="toCustom" placeholder="Napiš vlastní místo" style="display:none;">
-</div>
-
-<div class="card">
-<h3>🛒 Košík</h3>
+<h3>🛒 Košík jízd</h3>
 <div id="cart"></div>
 </div>
 
-<button onclick="addRide()">➕ Přidat jízdu</button>
+<button onclick="addToCart()">➕ Přidat jízdu</button>
 
+<!-- USER DATA -->
 <div class="card">
 <h3>👤 Údaje</h3>
 <input id="name" placeholder="Jméno">
@@ -150,62 +120,76 @@ src="https://www.google.com/maps?q=Praha&output=embed"></iframe>
 
 <script>
 
-let cart = [];
+let results = [];
+let selectedPlace = "";
 
-document.getElementById("from").onchange = e=>{
-    document.getElementById("fromCustom").style.display =
-    e.target.value==="custom" ? "block":"none";
-};
+async function searchPlaces(){
+    let q = document.getElementById("search").value;
 
-document.getElementById("to").onchange = e=>{
-    document.getElementById("toCustom").style.display =
-    e.target.value==="custom" ? "block":"none";
-};
-
-function getValue(selectId, customId){
-    let val = document.getElementById(selectId).value;
-    if(val==="custom"){
-        return document.getElementById(customId).value || "Nezadáno";
+    if(q.length < 2){
+        document.getElementById("list").innerHTML = "";
+        return;
     }
-    return val;
+
+    let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
+
+    let res = await fetch(url);
+    let data = await res.json();
+
+    results = data;
+
+    let html = "";
+
+    data.slice(0,6).forEach((p,i)=>{
+        html += `<div onclick="selectPlace(${i})">
+        📍 ${p.display_name}
+        </div>`;
+    });
+
+    document.getElementById("list").innerHTML = html;
 }
 
-function addRide(){
-    let from = getValue("from","fromCustom");
-    let to = getValue("to","toCustom");
+function selectPlace(i){
+    selectedPlace = results[i].display_name;
 
-    cart.push(from + " ➜ " + to);
-    render();
+    document.getElementById("selected").innerText = selectedPlace;
+    document.getElementById("search").value = selectedPlace;
+
+    document.getElementById("list").innerHTML = "";
 }
 
-function render(){
-    document.getElementById("cart").innerHTML =
-    cart.map(c=>`<div class="cartItem">${c}</div>`).join("");
-}
+function addToCart(){
+    if(!selectedPlace){
+        alert("❌ Nejprve vyber adresu!");
+        return;
+    }
 
-function updateMap(){
-    let q = document.getElementById("mapQuery").value;
-    if(!q) q="Praha";
-    document.getElementById("map").src =
-    "https://www.google.com/maps?q="+encodeURIComponent(q)+"&output=embed";
+    let div = document.createElement("div");
+    div.className = "item";
+    div.innerText = "🚗 " + selectedPlace;
+
+    document.getElementById("cart").appendChild(div);
 }
 
 function send(){
+
+    let items = [];
+    document.querySelectorAll(".item").forEach(i=>{
+        items.push(i.innerText);
+    });
+
     fetch("https://formspree.io/f/mdargvpd", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            house:document.getElementById("house").value,
-            name:document.getElementById("name").value,
-            phone:document.getElementById("phone").value,
-            email:document.getElementById("email").value,
-            rides:cart.join(", ")
+        body: JSON.stringify({
+            name: document.getElementById("name").value,
+            phone: document.getElementById("phone").value,
+            email: document.getElementById("email").value,
+            orders: items.join(", ")
         })
     });
 
-    alert("✅ Díky! Objednávka odeslána.");
-    cart=[];
-    render();
+    alert("✅ Objednávka odeslána!");
 }
 
 </script>
