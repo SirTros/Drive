@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SirTros Drive</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:linear-gradient(135deg,#0f0f0f,#1c1c1c);
+    color:white;
+}
+
+header{
+    background:#000;
+    padding:18px;
+    text-align:center;
+    font-size:20px;
+    font-weight:bold;
+    border-bottom:2px solid #333;
+}
+
+.container{padding:12px;}
+
+.card{
+    background:#1f1f1f;
+    padding:12px;
+    border-radius:12px;
+    margin-bottom:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.4);
+}
+
+select,input{
+    width:100%;
+    padding:10px;
+    margin-top:6px;
+    margin-bottom:8px;
+    border-radius:8px;
+    border:none;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:#00c853;
+    color:black;
+    font-weight:bold;
+    margin-top:6px;
+}
+
+button:active{transform:scale(0.98);}
+
+.cartItem{
+    background:#2a2a2a;
+    padding:8px;
+    margin:5px 0;
+    border-radius:8px;
+}
+
+iframe{
+    width:100%;
+    height:200px;
+    border-radius:10px;
+    border:none;
+}
+.small{
+    font-size:12px;
+    opacity:0.7;
+}
+</style>
+</head>
+
+<body>
+
+<header>🚗 SirTros Drive Indoor</header>
+
+<div class="container">
+
+<div class="card">
+<h3>🏠 Adresa domu</h3>
+<input id="house" placeholder="např. Praha, byt 12">
+</div>
+
+<div class="card">
+<h3>📍 Google mapa (volitelné)</h3>
+<input id="mapQuery" placeholder="např. Praha, Václavák nebo obývák">
+<button onclick="updateMap()">📌 Načíst mapu</button>
+
+<iframe id="map"
+src="https://www.google.com/maps?q=Praha&output=embed"></iframe>
+
+<p class="small">Můžeš psát i „televize“, „skříň“, „kuchyň“…</p>
+</div>
+
+<div class="card">
+<h3>🚪 ODKUD</h3>
+<select id="from">
+<option>Obývák u stolu</option>
+<option>Kuchyň</option>
+<option>Ložnice</option>
+<option>Koupelna</option>
+<option>Televize</option>
+<option>Skříň</option>
+<option>Garáž</option>
+<option>Balkon</option>
+<option>Schody</option>
+<option value="custom">➕ Jiná (napsat)</option>
+</select>
+<input id="fromCustom" placeholder="Napiš vlastní místo" style="display:none;">
+</div>
+
+<div class="card">
+<h3>🎯 KAM</h3>
+<select id="to">
+<option>Obývák u stolu</option>
+<option>Kuchyň</option>
+<option>Ložnice</option>
+<option>Koupelna</option>
+<option>Televize</option>
+<option>Skříň</option>
+<option>Garáž</option>
+<option>Balkon</option>
+<option>Schody</option>
+<option value="custom">➕ Jiná (napsat)</option>
+</select>
+<input id="toCustom" placeholder="Napiš vlastní místo" style="display:none;">
+</div>
+
+<div class="card">
+<h3>🛒 Košík</h3>
+<div id="cart"></div>
+</div>
+
+<button onclick="addRide()">➕ Přidat jízdu</button>
+
+<div class="card">
+<h3>👤 Údaje</h3>
+<input id="name" placeholder="Jméno">
+<input id="phone" placeholder="Telefon">
+<input id="email" placeholder="Email">
+</div>
+
+<button onclick="send()">🚀 ODESLAT OBJEDNÁVKU</button>
+
+</div>
+
+<script>
+
+let cart = [];
+
+document.getElementById("from").onchange = e=>{
+    document.getElementById("fromCustom").style.display =
+    e.target.value==="custom" ? "block":"none";
+};
+
+document.getElementById("to").onchange = e=>{
+    document.getElementById("toCustom").style.display =
+    e.target.value==="custom" ? "block":"none";
+};
+
+function getValue(selectId, customId){
+    let val = document.getElementById(selectId).value;
+    if(val==="custom"){
+        return document.getElementById(customId).value || "Nezadáno";
+    }
+    return val;
+}
+
+function addRide(){
+    let from = getValue("from","fromCustom");
+    let to = getValue("to","toCustom");
+
+    cart.push(from + " ➜ " + to);
+    render();
+}
+
+function render(){
+    document.getElementById("cart").innerHTML =
+    cart.map(c=>`<div class="cartItem">${c}</div>`).join("");
+}
+
+function updateMap(){
+    let q = document.getElementById("mapQuery").value;
+    if(!q) q="Praha";
+    document.getElementById("map").src =
+    "https://www.google.com/maps?q="+encodeURIComponent(q)+"&output=embed";
+}
+
+function send(){
+    fetch("https://formspree.io/f/mdargvpd", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            house:document.getElementById("house").value,
+            name:document.getElementById("name").value,
+            phone:document.getElementById("phone").value,
+            email:document.getElementById("email").value,
+            rides:cart.join(", ")
+        })
+    });
+
+    alert("✅ Díky! Objednávka odeslána.");
+    cart=[];
+    render();
+}
+
+</script>
+
+</body>
+</html>
